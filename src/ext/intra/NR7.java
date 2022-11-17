@@ -4,6 +4,8 @@ import ext.utils.Utils;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class NR7 {
     private static Map<String, List<Double>> all = new HashMap<>();
@@ -45,21 +47,36 @@ public class NR7 {
 
     public static void calculate() {
         processReports();
-        List<String> result = new ArrayList<>();
+        List<String> stocks = new ArrayList<>();
         for (Map.Entry<String, List<Double>> entry : all.entrySet()) {
             List orig = entry.getValue();
             List<Double> sortedlist = new ArrayList<>(orig);
             Collections.sort(sortedlist);
             double min = sortedlist.get(0);
             if (min == (double) orig.get(0) && min == 3.0) {
-                result.add(entry.getKey());
+                stocks.add(entry.getKey());
             }
         }
-        int i = 1;
-        System.out.println("Potential Intra-Day Stocks");
-        for (String elem : result) {
-            System.out.println(i++ + ". " + elem);
+
+        System.out.println("Potential Intra-Day Stocks in Ascending order");
+
+        List<File> files = getlast7Days(baseDir);
+        File file = files.get(0);
+        List<String> lines = Utils.readFile(file);
+        Map<String, Double> priceMap = new HashMap<>();
+        for (String line : lines) {
+            String[] elem = line.split(",");
+            String key = elem[0];
+            Double price = Double.parseDouble(elem[6]);
+            priceMap.put(key, price);
         }
+        Map<String, Double> stocksWithLastBuy = new HashMap<>();
+        for (String elem : stocks) {
+            stocksWithLastBuy.put(elem, priceMap.get(elem));
+        }
+
+        Map<String, Double> sortedMapAsc = sortByValue(stocksWithLastBuy, true);
+        printMap(sortedMapAsc);
     }
 
     private static List<File> getlast7Days(String base) {
@@ -76,5 +93,26 @@ public class NR7 {
     private static double getDelta(double high, double low) {
         double delta = ((high - low) / low) * 100;
         return Math.round(delta);
+    }
+
+    private static LinkedHashMap<String, Double> sortByValue(Map<String, Double> unsortMap, final boolean order)
+    {
+        List<Map.Entry<String, Double>> list = new LinkedList<>(unsortMap.entrySet());
+
+        // Sorting the list based on values
+        list.sort((o1, o2) -> order ? o1.getValue().compareTo(o2.getValue()) == 0
+                ? o1.getKey().compareTo(o2.getKey())
+                : o1.getValue().compareTo(o2.getValue()) : o2.getValue().compareTo(o1.getValue()) == 0
+                ? o2.getKey().compareTo(o1.getKey())
+                : o2.getValue().compareTo(o1.getValue()));
+        LinkedHashMap<String, Double> collect = list.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, LinkedHashMap::new));
+        return collect;
+
+    }
+
+    private static void printMap(Map<String, Double> map)
+    {
+        AtomicInteger i= new AtomicInteger(1);
+        map.forEach((key, value) -> System.out.println(i.getAndIncrement() + ". " + key + "\t" + value));
     }
 }
