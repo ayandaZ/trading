@@ -8,16 +8,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class NR7 {
-    private static Map<String, List<Double>> all = new HashMap<>();
-    private static String baseDir = "D:\\Trading\\NR7Zips";
+    private final static Map<String, List<Double>> all = new HashMap<>();
+    private final static Map<String, List<String>> prevDayDetails = new HashMap<>();
 
-    private NR7() {
+    private NR7() {}
 
-    }
-
-    private static void processReports() {
-        List<File> files = getlast7Days(baseDir);
+    private static void processReports(String baseDir) {
+        List<File> files = getLast7Days(baseDir);
         System.out.println("Files size=" + files.size());
+        boolean firstDay = true;
         for (File file : files) {
             List<String> lines = Utils.readFile(file);
             for (String line : lines) {
@@ -39,55 +38,59 @@ public class NR7 {
                         all.put(key, value);
                     }
                 }
-
+            }
+            if(firstDay){
+                /* Populating prevDayDetails */
+                for (String line : lines) {
+                    String[] elem = line.split(",");
+                    String key = elem[0];
+                    String high = elem[3];
+                    String low = elem[4];
+                    String price = elem[6];
+                    prevDayDetails.put(key, Arrays.asList(high, low, price));
+                }
+                firstDay = false;
             }
         }
-        System.out.println(all);
     }
 
-    public static void calculate() {
-        processReports();
+    public static void calculate(String baseDir, int minDelta) {
+        processReports(baseDir);
         List<String> stocks = new ArrayList<>();
         for (Map.Entry<String, List<Double>> entry : all.entrySet()) {
-            List orig = entry.getValue();
+            List<Double> orig = entry.getValue();
             List<Double> sortedlist = new ArrayList<>(orig);
             Collections.sort(sortedlist);
             double min = sortedlist.get(0);
-            if (min == (double) orig.get(0) && min == 3.0) {
+            if (min == orig.get(0) && min == minDelta) {
                 stocks.add(entry.getKey());
             }
         }
 
         System.out.println("Potential Intra-Day Stocks in Ascending order");
 
-        List<File> files = getlast7Days(baseDir);
-        File file = files.get(0);
-        List<String> lines = Utils.readFile(file);
-        Map<String, Double> priceMap = new HashMap<>();
-        for (String line : lines) {
-            String[] elem = line.split(",");
-            String key = elem[0];
-            Double price = Double.parseDouble(elem[6]);
-            priceMap.put(key, price);
-        }
+        /*Adding final result */
         Map<String, Double> stocksWithLastBuy = new HashMap<>();
-        for (String elem : stocks) {
-            stocksWithLastBuy.put(elem, priceMap.get(elem));
+        for (String stock : stocks) {
+            List<String> prevDayDetail = prevDayDetails.get(stock);
+            String key = stock + ",\t\t High=" + prevDayDetail.get(0) + ",\t Low=" + prevDayDetail.get(1);
+            Double value = Double.parseDouble(prevDayDetail.get(2));
+            stocksWithLastBuy.put(key, value);
         }
 
-        Map<String, Double> sortedMapAsc = sortByValue(stocksWithLastBuy, true);
+        /* Sorting */
+        Map<String, Double> sortedMapAsc = sortByValue(stocksWithLastBuy);
+
+        /* Display */
         printMap(sortedMapAsc);
     }
 
-    private static List<File> getlast7Days(String base) {
+    private static List<File> getLast7Days(String base) {
         File directory = new File(base);
-        List<File> result = new ArrayList<>();
         File[] files = directory.listFiles();
+        Objects.requireNonNull(files, "Cannot read from directory, files is null");
         Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
-        for (int i = 0; i < 7; i++) {
-            result.add(files[i]);
-        }
-        return result;
+        return new ArrayList<>(Arrays.asList(files).subList(0, 7));
     }
 
     private static double getDelta(double high, double low) {
@@ -95,24 +98,21 @@ public class NR7 {
         return Math.round(delta);
     }
 
-    private static LinkedHashMap<String, Double> sortByValue(Map<String, Double> unsortMap, final boolean order)
+    private static LinkedHashMap<String, Double> sortByValue(Map<String, Double> unSortMap)
     {
-        List<Map.Entry<String, Double>> list = new LinkedList<>(unsortMap.entrySet());
+        List<Map.Entry<String, Double>> list = new LinkedList<>(unSortMap.entrySet());
 
         // Sorting the list based on values
-        list.sort((o1, o2) -> order ? o1.getValue().compareTo(o2.getValue()) == 0
+        list.sort((o1, o2) -> o1.getValue().compareTo(o2.getValue()) == 0
                 ? o1.getKey().compareTo(o2.getKey())
-                : o1.getValue().compareTo(o2.getValue()) : o2.getValue().compareTo(o1.getValue()) == 0
-                ? o2.getKey().compareTo(o1.getKey())
-                : o2.getValue().compareTo(o1.getValue()));
-        LinkedHashMap<String, Double> collect = list.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, LinkedHashMap::new));
-        return collect;
+                : o1.getValue().compareTo(o2.getValue()));
+        return list.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, LinkedHashMap::new));
 
     }
 
     private static void printMap(Map<String, Double> map)
     {
         AtomicInteger i= new AtomicInteger(1);
-        map.forEach((key, value) -> System.out.println(i.getAndIncrement() + ". " + key + "\t" + value));
+        map.forEach((key, value) -> System.out.println(i.getAndIncrement() + ". " + key + "\tLast Buy=" + value));
     }
 }

@@ -8,7 +8,7 @@ import java.util.List;
 
 public class Utils {
     public static List<String> readFile(File file) {
-        List<String> lines = null;
+        List<String> lines;
         try {
             lines = FileUtils.readLines(file);
             lines.remove(0);
