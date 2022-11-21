@@ -15,7 +15,6 @@ public class NR7 {
 
     private static void processReports(String baseDir) {
         List<File> files = getLast7Days(baseDir);
-        System.out.println("Files size=" + files.size());
         boolean firstDay = true;
         for (File file : files) {
             List<String> lines = Utils.readFile(file);
@@ -113,6 +112,6 @@ public class NR7 {
     private static void printMap(Map<String, Double> map)
     {
         AtomicInteger i= new AtomicInteger(1);
-        map.forEach((key, value) -> System.out.println(i.getAndIncrement() + ". " + key + "\tLast Buy=" + value));
+        map.forEach((key, value) -> System.out.println(i.getAndIncrement() + ". " + key + "\tLTB=" + value));
     }
 }
