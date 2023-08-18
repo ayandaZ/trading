@@ -5,7 +5,7 @@ public class Trader {
 
         if(args.length == 3 && args[0].equals("nr7")) {
             NR7.calculate(args[1], Integer.parseInt(args[2]));
-            System.out.println("Report Complete.");
+            System.out.println("Report generation Complete.");
         } else{
             printUsage();
         }
