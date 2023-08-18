@@ -67,6 +67,7 @@ public class NR7 {
         }
 
         System.out.println("Potential Intra-Day Stocks in Ascending order");
+        System.out.println("=============================================");
 
         /*Adding final result */
         Map<String, Double> stocksWithLastBuy = new HashMap<>();
